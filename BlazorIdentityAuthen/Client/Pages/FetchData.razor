@@ -1,0 +1,75 @@
+﻿@page "/fetchdata"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using BlazorIdentityAuthen.Shared
+@attribute [Authorize]
+@inject HttpClient Http
+@inject IAccessTokenProvider AuthenicationService
+@inject NavigationManager NavManager
+
+<PageTitle>Weather forecast</PageTitle>
+
+<h1>Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private WeatherForecast[]? forecasts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri(NavManager.BaseUri);
+
+            var tokenResult = await AuthenicationService.RequestAccessToken();
+
+            if (tokenResult.TryGetToken(out var token))
+            {
+                httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.Value}");
+
+                forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
+
+            }
+            else
+            {
+                NavManager.NavigateTo(tokenResult.RedirectUrl);
+            }
+
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+}
